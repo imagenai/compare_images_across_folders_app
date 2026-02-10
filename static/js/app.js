@@ -70,6 +70,15 @@ sidebarToggle.addEventListener('click', () => {
     sidebarCollapsed = !sidebarCollapsed;
     sidebarEl.classList.toggle('collapsed', sidebarCollapsed);
     toggleIcon.style.transform = sidebarCollapsed ? 'rotate(180deg)' : '';
+
+    if (sidebarCollapsed) {
+        // Clear inline width so the CSS .collapsed { width: 0 } takes effect
+        sidebarEl.style.width = '';
+        sidebarEl.querySelector('.sidebar-inner').style.width = '';
+    } else {
+        // Restore the custom width
+        setSidebarWidth(sidebarWidth);
+    }
 });
 
 // ===========================================================================

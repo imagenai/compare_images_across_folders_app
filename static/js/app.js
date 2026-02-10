@@ -239,6 +239,75 @@ folderInput.addEventListener('keydown', (e) => {
 });
 
 // ===========================================================================
+// Export / Load State
+// ===========================================================================
+const exportStateBtn = document.getElementById('export-state-btn');
+const loadStateBtn = document.getElementById('load-state-btn');
+const stateFileInput = document.getElementById('state-file-input');
+
+function exportState() {
+    if (folders.length === 0) {
+        showError('No folders to export.');
+        return;
+    }
+
+    const state = {
+        folders: folders.map(f => ({
+            path: f.path,
+            name: f.name,
+            checked: f.checked,
+        })),
+    };
+
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'image-compare-state.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function loadState(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const state = JSON.parse(e.target.result);
+
+            if (!state.folders || !Array.isArray(state.folders)) {
+                showError('Invalid state file: missing folders array.');
+                return;
+            }
+
+            // Restore folders with fresh IDs
+            folders = state.folders.map(f => ({
+                id: nextFolderId++,
+                path: f.path,
+                name: f.name || f.path.split('/').pop(),
+                checked: f.checked !== false,
+            }));
+
+            renderFolderList();
+            onFolderSelectionChanged();
+        } catch (err) {
+            showError('Failed to parse state file.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+exportStateBtn.addEventListener('click', exportState);
+loadStateBtn.addEventListener('click', () => stateFileInput.click());
+stateFileInput.addEventListener('change', () => {
+    if (stateFileInput.files.length > 0) {
+        loadState(stateFileInput.files[0]);
+        stateFileInput.value = '';  // reset so same file can be re-loaded
+    }
+});
+
+// ===========================================================================
 // Image Intersection
 // ===========================================================================
 async function fetchImageIntersection() {

@@ -9,6 +9,7 @@ let displayMode = 'grid';  // 'grid' | 'overlay'
 let overlayIndex = 0;      // index into checkedFolders for overlay mode
 let nextFolderId = 1;
 let sidebarCollapsed = false;
+let sidebarWidth = 300;        // current sidebar width in px (default 300)
 
 // Zoom & Pan (shared across all images)
 let zoomLevel = 1;        // 1 = fit, higher = zoomed in
@@ -21,6 +22,7 @@ let panY = 0.5;
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const toggleIcon = document.getElementById('toggle-icon');
+const sidebarResize = document.getElementById('sidebar-resize');
 const folderInput = document.getElementById('folder-input');
 const addFolderBtn = document.getElementById('add-folder-btn');
 const folderError = document.getElementById('folder-error');
@@ -68,6 +70,50 @@ sidebarToggle.addEventListener('click', () => {
     sidebarCollapsed = !sidebarCollapsed;
     sidebarEl.classList.toggle('collapsed', sidebarCollapsed);
     toggleIcon.style.transform = sidebarCollapsed ? 'rotate(180deg)' : '';
+});
+
+// ===========================================================================
+// Sidebar Resize
+// ===========================================================================
+const SIDEBAR_MIN_WIDTH = 180;
+const SIDEBAR_MAX_WIDTH = 600;
+
+function setSidebarWidth(width) {
+    sidebarWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, width));
+    sidebarEl.style.width = sidebarWidth + 'px';
+    sidebarEl.querySelector('.sidebar-inner').style.width = sidebarWidth + 'px';
+}
+
+sidebarResize.addEventListener('mousedown', (e) => {
+    if (sidebarCollapsed) return;
+    e.preventDefault();
+
+    sidebarEl.classList.add('resizing');
+    sidebarResize.classList.add('active');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    function onMouseMove(e) {
+        const delta = e.clientX - startX;
+        setSidebarWidth(startWidth + delta);
+    }
+
+    function onMouseUp() {
+        sidebarEl.classList.remove('resizing');
+        sidebarResize.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        // Re-apply zoom/pan since container dimensions changed
+        applyZoomPan();
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
 });
 
 // ===========================================================================
@@ -252,15 +298,54 @@ function renderImageList() {
     filteredImages.forEach(name => {
         const li = document.createElement('li');
         li.className = 'image-item' + (name === selectedImage ? ' selected' : '');
-        li.textContent = name;
         li.title = name;
         li.addEventListener('click', () => {
             selectImage(name);
         });
+
+        // Image name label
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'image-name';
+        nameSpan.textContent = name;
+
+        // Copy button with clipboard icon
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.title = 'Copy filename';
+        copyBtn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyImageName(name, copyBtn);
+        });
+
+        li.appendChild(nameSpan);
+        li.appendChild(copyBtn);
         imageListEl.appendChild(li);
     });
 
     scrollSelectedIntoView();
+}
+
+function copyImageName(name, btn) {
+    navigator.clipboard.writeText(name).then(() => {
+        // Show checkmark briefly
+        btn.classList.add('copied');
+        btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        }, 1500);
+    }).catch(() => {
+        // Fallback for older browsers or non-HTTPS
+        const ta = document.createElement('textarea');
+        ta.value = name;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    });
 }
 
 function selectImage(name) {

@@ -13,9 +13,43 @@
     pointer-events: none;
 }
 
+.sidebar.resizing {
+    transition: none;
+}
+
 .sidebar-inner {
     width: 300px;
     transition: opacity 0.15s ease;
+}
+
+/* Sidebar resize handle */
+.sidebar-resize-handle {
+    width: 4px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.sidebar-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -2px;
+    width: 8px;
+    height: 100%;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.active {
+    background: #3b82f6;
+}
+
+.sidebar.collapsed ~ .sidebar-resize-handle {
+    pointer-events: none;
+    opacity: 0;
 }
 
 /* Toggle icon rotation when collapsed */
@@ -95,15 +129,23 @@
 
 /* Image list items */
 .image-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
     padding: 0.25rem 0.5rem;
     font-size: 0.8125rem;
     border-radius: 0.25rem;
     cursor: pointer;
+    color: #d1d5db;
+    transition: background 0.1s;
+}
+
+.image-item .image-name {
+    flex: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #d1d5db;
-    transition: background 0.1s;
 }
 
 .image-item:hover {
@@ -113,6 +155,51 @@
 .image-item.selected {
     background: #2563eb;
     color: #ffffff;
+}
+
+/* Copy button on image items */
+.image-item .copy-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 0.25rem;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    padding: 0;
+}
+
+.image-item:hover .copy-btn {
+    opacity: 1;
+}
+
+.image-item .copy-btn:hover {
+    color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.image-item.selected .copy-btn {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.image-item.selected .copy-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.image-item .copy-btn.copied {
+    opacity: 1;
+    color: #22c55e;
+}
+
+.image-item.selected .copy-btn.copied {
+    color: #86efac;
 }
 
 /* Mode buttons */

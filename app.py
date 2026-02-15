@@ -172,5 +172,34 @@ def serve_image():
     return send_from_directory(folder, actual_name)
 
 
+def find_free_port():
+    """Find an available port by letting the OS assign one."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Image Compare — compare images across folders')
+    parser.add_argument('-p', '--port', type=int, default=5000,
+                        help='Port to run the server on (default: 5000)')
+    parser.add_argument('--auto-port', action='store_true',
+                        help='Automatically pick an available port')
+    args = parser.parse_args()
+
+    # Persist the port in an env var so Flask's reloader reuses the same port
+    env_key = 'IMAGE_COMPARE_PORT'
+    if env_key in os.environ:
+        port = int(os.environ[env_key])
+    elif args.auto_port:
+        port = find_free_port()
+        os.environ[env_key] = str(port)
+    else:
+        port = args.port
+        os.environ[env_key] = str(port)
+
+    print(f' * Starting on http://127.0.0.1:{port}')
+    app.run(host='127.0.0.1', port=port, debug=True)

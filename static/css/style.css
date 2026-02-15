@@ -104,6 +104,13 @@
     background: rgba(31, 41, 55, 0.8);
 }
 
+.folder-item .folder-count {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
 .folder-item .remove-btn {
     flex-shrink: 0;
     color: #6b7280;

@@ -31,6 +31,7 @@ const noFoldersEl = document.getElementById('no-folders');
 const imageSearch = document.getElementById('image-search');
 const imageListEl = document.getElementById('image-list');
 const noImagesEl = document.getElementById('no-images');
+const imageCountEl = document.getElementById('image-count');
 const modeGridBtn = document.getElementById('mode-grid');
 const modeOverlayBtn = document.getElementById('mode-overlay');
 const gridConfig = document.getElementById('grid-config');
@@ -177,9 +178,15 @@ function renderFolderList() {
             onFolderSelectionChanged();
         });
 
+        // Image count badge
+        const countBadge = document.createElement('span');
+        countBadge.className = 'folder-count';
+        countBadge.textContent = folder.imageCount != null ? `(${folder.imageCount})` : '';
+
         li.appendChild(handle);
         li.appendChild(cb);
         li.appendChild(nameInput);
+        li.appendChild(countBadge);
         li.appendChild(removeBtn);
         folderListEl.appendChild(li);
     });
@@ -232,6 +239,7 @@ async function addFolder() {
             path: data.path,
             name: data.path.split('/').pop(),
             checked: true,
+            imageCount: (data.images || []).length,
         });
 
         folderInput.value = '';
@@ -296,15 +304,35 @@ function loadState(file) {
                 path: f.path,
                 name: f.name || f.path.split('/').pop(),
                 checked: f.checked !== false,
+                imageCount: null,
             }));
 
             renderFolderList();
             onFolderSelectionChanged();
+            fetchFolderCounts();
         } catch (err) {
             showError('Failed to parse state file.');
         }
     };
     reader.readAsText(file);
+}
+
+async function fetchFolderCounts() {
+    const promises = folders.map(async (folder) => {
+        try {
+            const res = await fetch('/api/folders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: folder.path }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                folder.imageCount = (data.images || []).length;
+            }
+        } catch { /* ignore */ }
+    });
+    await Promise.all(promises);
+    renderFolderList();
 }
 
 exportStateBtn.addEventListener('click', exportState);
@@ -372,6 +400,9 @@ function applyImageFilter() {
 function renderImageList() {
     imageListEl.innerHTML = '';
     noImagesEl.classList.toggle('hidden', filteredImages.length > 0);
+
+    // Update match count in the heading
+    imageCountEl.textContent = imageNames.length > 0 ? `(${filteredImages.length}/${imageNames.length})` : '';
 
     filteredImages.forEach(name => {
         const li = document.createElement('li');

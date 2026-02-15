@@ -837,6 +837,48 @@ function handleWheel(e) {
 // Attach wheel handler to the display area (covers both grid and overlay)
 displayArea.addEventListener('wheel', handleWheel, { passive: false });
 
+// Middle-mouse-button drag to pan (cursor stays locked in place)
+displayArea.addEventListener('mousedown', (e) => {
+    if (e.button !== 1) return;          // middle button only
+    if (zoomLevel <= 1) return;          // nothing to pan at fit level
+
+    const container = e.target.closest('.zoom-container');
+    if (!container) return;
+
+    const img = container.querySelector('.zoom-img');
+    if (!img || !img.naturalWidth) return;
+
+    e.preventDefault();
+
+    const cW = container.clientWidth;
+    const cH = container.clientHeight;
+    const { fitW, fitH } = getFitDimensions(cW, cH, img.naturalWidth, img.naturalHeight);
+    const displayW = fitW * zoomLevel;
+    const displayH = fitH * zoomLevel;
+
+    function onMouseMove(e) {
+        panX -= e.movementX / displayW;
+        panY -= e.movementY / displayH;
+        applyZoomPan();
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.exitPointerLock();
+    }
+
+    // Lock the cursor in place so it doesn't drift while panning
+    displayArea.requestPointerLock();
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+});
+
+// Prevent default middle-click auto-scroll on the display area
+displayArea.addEventListener('auxclick', (e) => {
+    if (e.button === 1) e.preventDefault();
+});
+
 // Re-apply zoom/pan on window resize so positions stay correct
 window.addEventListener('resize', () => applyZoomPan());
 

@@ -82,6 +82,13 @@ sidebarToggle.addEventListener('click', () => {
     }
 });
 
+// Refit images after the sidebar width transition finishes
+sidebarEl.addEventListener('transitionend', (e) => {
+    if (e.propertyName === 'width') {
+        applyZoomPan();
+    }
+});
+
 // ===========================================================================
 // Sidebar Resize
 // ===========================================================================

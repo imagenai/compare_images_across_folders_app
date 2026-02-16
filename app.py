@@ -188,6 +188,8 @@ if __name__ == '__main__':
                         help='Port to run the server on (default: 5000)')
     parser.add_argument('--auto-port', action='store_true',
                         help='Automatically pick an available port')
+    parser.add_argument('--public', action='store_true',
+                        help='Listen on all interfaces (0.0.0.0) so the app is accessible over the network')
     args = parser.parse_args()
 
     # Persist the port in an env var so Flask's reloader reuses the same port
@@ -201,5 +203,6 @@ if __name__ == '__main__':
         port = args.port
         os.environ[env_key] = str(port)
 
-    print(f' * Starting on http://127.0.0.1:{port}')
-    app.run(host='127.0.0.1', port=port, debug=True)
+    host = '0.0.0.0' if args.public else '127.0.0.1'
+    print(f' * Starting on http://{host}:{port}')
+    app.run(host=host, port=port, debug=True)

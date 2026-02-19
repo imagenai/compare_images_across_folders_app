@@ -1,7 +1,7 @@
 import io
 import os
 from functools import lru_cache
-from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort, make_response
 from PIL import Image
 
 app = Flask(__name__)
@@ -16,6 +16,9 @@ NEEDS_CONVERSION = {'.tiff', '.tif', '.bmp'}
 
 # Maximum number of converted images to keep in cache
 CONVERSION_CACHE_SIZE = 256
+
+# Max pixel dimension (longest side) for converted images — 0 means no limit
+MAX_RESOLUTION = 3000
 
 
 def is_image_file(filename):
@@ -59,16 +62,23 @@ def find_image_by_stem(folder_path, stem):
 
 
 @lru_cache(maxsize=CONVERSION_CACHE_SIZE)
-def convert_image(file_path, mtime):
+def convert_image(file_path, mtime, cap_resolution=True):
     """Convert an image to JPEG bytes. Cached by path + modification time.
 
     The mtime parameter ensures the cache is invalidated when the file changes.
+    Downscales to MAX_RESOLUTION if cap_resolution is True and the image exceeds it.
     """
     img = Image.open(file_path)
+
+    if cap_resolution and MAX_RESOLUTION > 0:
+        longest = max(img.size)
+        if longest > MAX_RESOLUTION:
+            img.thumbnail((MAX_RESOLUTION, MAX_RESOLUTION), Image.BILINEAR)
+
     if img.mode in ('RGBA', 'LA', 'P'):
         img = img.convert('RGB')
     buf = io.BytesIO()
-    img.save(buf, format='JPEG', quality=92)
+    img.save(buf, format='JPEG', quality=85)
     return buf.getvalue()
 
 
@@ -158,18 +168,22 @@ def serve_image():
 
     # Convert browser-unsupported formats (TIFF, BMP) to JPEG on the fly
     ext = os.path.splitext(actual_name)[1].lower()
+    cap = request.args.get('cap', '1') != '0'
     if ext in NEEDS_CONVERSION:
         try:
             mtime = os.path.getmtime(file_path)
-            jpeg_bytes = convert_image(file_path, mtime)
-            return send_file(
-                io.BytesIO(jpeg_bytes),
-                mimetype='image/jpeg',
-            )
+            jpeg_bytes = convert_image(file_path, mtime, cap_resolution=cap)
+            resp = make_response(jpeg_bytes)
+            resp.headers['Content-Type'] = 'image/jpeg'
+            resp.headers['Cache-Control'] = 'private, max-age=300'
+            resp.headers['ETag'] = f'"{hash((file_path, mtime))}"'
+            return resp
         except Exception:
             abort(500)
 
-    return send_from_directory(folder, actual_name)
+    resp = make_response(send_from_directory(folder, actual_name))
+    resp.headers['Cache-Control'] = 'private, max-age=300'
+    return resp
 
 
 def find_free_port():
@@ -190,7 +204,11 @@ if __name__ == '__main__':
                         help='Automatically pick an available port')
     parser.add_argument('--public', action='store_true',
                         help='Listen on all interfaces (0.0.0.0) so the app is accessible over the network')
+    parser.add_argument('--max-resolution', type=int, default=3000,
+                        help='Max pixel dimension for converted images like TIFF (default: 3000, 0=no limit)')
     args = parser.parse_args()
+
+    MAX_RESOLUTION = args.max_resolution
 
     # Persist the port in an env var so Flask's reloader reuses the same port
     env_key = 'IMAGE_COMPARE_PORT'

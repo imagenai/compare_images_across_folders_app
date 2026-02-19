@@ -46,6 +46,7 @@ const overlayLabel = document.getElementById('overlay-label');
 const overlayImg = document.getElementById('overlay-img');
 const emptyState = document.getElementById('empty-state');
 const displayArea = document.getElementById('display-area');
+const capResolutionCb = document.getElementById('cap-resolution');
 
 // ===========================================================================
 // Helpers
@@ -61,7 +62,8 @@ function showError(msg) {
 }
 
 function imageUrl(folderPath, imageName) {
-    return `/api/image?folder=${encodeURIComponent(folderPath)}&name=${encodeURIComponent(imageName)}`;
+    const cap = capResolutionCb.checked ? '1' : '0';
+    return `/api/image?folder=${encodeURIComponent(folderPath)}&name=${encodeURIComponent(imageName)}&cap=${cap}`;
 }
 
 // ===========================================================================
@@ -472,6 +474,34 @@ function selectImage(name) {
     panY = 0.5;
     renderImageList();
     renderDisplay();
+    preloadNearbyImages(name);
+}
+
+const PRELOAD_RADIUS = 5;
+const preloadCache = new Set();
+
+function preloadNearbyImages(currentName) {
+    const checked = getCheckedFolders();
+    if (checked.length === 0) return;
+
+    const idx = filteredImages.indexOf(currentName);
+    if (idx === -1) return;
+
+    for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
+        if (offset === 0) continue;
+        const i = idx + offset;
+        if (i < 0 || i >= filteredImages.length) continue;
+
+        const imgName = filteredImages[i];
+        checked.forEach(folder => {
+            const url = imageUrl(folder.path, imgName);
+            if (!preloadCache.has(url)) {
+                preloadCache.add(url);
+                const img = new Image();
+                img.src = url;
+            }
+        });
+    }
 }
 
 function scrollSelectedIntoView() {
@@ -549,6 +579,11 @@ function setMode(mode) {
 
 modeGridBtn.addEventListener('click', () => setMode('grid'));
 modeOverlayBtn.addEventListener('click', () => setMode('overlay'));
+
+capResolutionCb.addEventListener('change', () => {
+    preloadCache.clear();
+    renderDisplay();
+});
 
 gridRowsInput.addEventListener('input', () => renderDisplay());
 gridColsInput.addEventListener('input', () => renderDisplay());

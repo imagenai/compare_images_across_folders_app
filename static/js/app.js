@@ -472,9 +472,23 @@ function selectImage(name) {
     zoomLevel = 1;
     panX = 0.5;
     panY = 0.5;
-    renderImageList();
+    updateImageSelection();
     renderDisplay();
     preloadNearbyImages(name);
+}
+
+function updateImageSelection() {
+    const prev = imageListEl.querySelector('.image-item.selected');
+    if (prev) prev.classList.remove('selected');
+
+    const items = imageListEl.children;
+    for (let i = 0; i < items.length; i++) {
+        if (filteredImages[i] === selectedImage) {
+            items[i].classList.add('selected');
+            items[i].scrollIntoView({ block: 'nearest' });
+            break;
+        }
+    }
 }
 
 const PRELOAD_RADIUS = 5;
@@ -593,26 +607,20 @@ gridColsInput.addEventListener('input', () => renderDisplay());
 // ===========================================================================
 function renderDisplay() {
     const checked = getCheckedFolders();
+    const hasContent = selectedImage && checked.length > 0;
+    const showGrid = hasContent && displayMode === 'grid';
+    const showOverlay = hasContent && displayMode === 'overlay';
 
-    if (!selectedImage || checked.length === 0) {
-        gridView.classList.add('hidden');
-        overlayView.classList.add('hidden');
-        emptyState.classList.remove('hidden');
-        overlayInfo.classList.add('hidden');
-        return;
-    }
+    gridView.classList.toggle('hidden', !showGrid);
+    overlayView.classList.toggle('hidden', !showOverlay);
+    overlayInfo.classList.toggle('hidden', !showOverlay);
+    emptyState.classList.toggle('hidden', hasContent);
 
-    emptyState.classList.add('hidden');
+    if (!hasContent) return;
 
-    if (displayMode === 'grid') {
-        gridView.classList.remove('hidden');
-        overlayView.classList.add('hidden');
-        overlayInfo.classList.add('hidden');
+    if (showGrid) {
         renderGrid();
     } else {
-        gridView.classList.add('hidden');
-        overlayView.classList.remove('hidden');
-        overlayInfo.classList.remove('hidden');
         if (overlayIndex >= checked.length) overlayIndex = 0;
         renderOverlay();
     }
@@ -621,40 +629,63 @@ function renderDisplay() {
 // ===========================================================================
 // Grid Mode
 // ===========================================================================
+let gridFolderKey = '';  // tracks which folders/layout the grid was built for
+
 function renderGrid() {
     const checked = getCheckedFolders();
     const rows = Math.max(1, parseInt(gridRowsInput.value) || 1);
     const cols = Math.max(1, parseInt(gridColsInput.value) || 2);
 
-    gridView.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    gridView.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-    gridView.innerHTML = '';
+    // Build a key from folder ids + grid dimensions to detect structural changes
+    const key = checked.map(f => f.id).join(',') + `|${rows}x${cols}`;
 
-    checked.forEach(folder => {
-        const cell = document.createElement('div');
-        cell.className = 'grid-cell';
+    if (key !== gridFolderKey) {
+        // Structure changed — rebuild the grid DOM
+        gridFolderKey = key;
+        gridView.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        gridView.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+        gridView.innerHTML = '';
 
-        const label = document.createElement('div');
-        label.className = 'cell-label';
-        label.textContent = folder.name;
-        label.title = folder.path;
+        checked.forEach(folder => {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
 
-        const zoomContainer = document.createElement('div');
-        zoomContainer.className = 'zoom-container';
+            const label = document.createElement('div');
+            label.className = 'cell-label';
+            label.textContent = folder.name;
+            label.title = folder.path;
 
-        const img = document.createElement('img');
-        img.className = 'zoom-img';
-        img.src = imageUrl(folder.path, selectedImage);
-        img.alt = `${folder.name} - ${selectedImage}`;
-        img.addEventListener('load', () => applyZoomPan());
+            const zoomContainer = document.createElement('div');
+            zoomContainer.className = 'zoom-container';
 
-        zoomContainer.appendChild(img);
-        cell.appendChild(label);
-        cell.appendChild(zoomContainer);
-        gridView.appendChild(cell);
+            const img = document.createElement('img');
+            img.className = 'zoom-img';
+            img.addEventListener('load', () => applyZoomPan());
+
+            zoomContainer.appendChild(img);
+            cell.appendChild(label);
+            cell.appendChild(zoomContainer);
+            gridView.appendChild(cell);
+        });
+    }
+
+    // Update image sources (and labels for renamed folders)
+    const imgs = gridView.querySelectorAll('.zoom-img');
+    const labels = gridView.querySelectorAll('.cell-label');
+    checked.forEach((folder, i) => {
+        if (labels[i]) {
+            labels[i].textContent = folder.name;
+            labels[i].title = folder.path;
+        }
+        if (imgs[i]) {
+            const newSrc = imageUrl(folder.path, selectedImage);
+            if (imgs[i].src !== newSrc) {
+                imgs[i].src = newSrc;
+                imgs[i].alt = `${folder.name} - ${selectedImage}`;
+            }
+        }
     });
 
-    // Apply zoom after a frame so containers have layout dimensions
     requestAnimationFrame(() => applyZoomPan());
 }
 

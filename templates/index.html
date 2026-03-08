@@ -70,11 +70,29 @@
 
                 <!-- Image List Section -->
                 <div class="flex-1 flex flex-col p-3 min-h-0">
-                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Images <span id="image-count" class="text-gray-500 normal-case tracking-normal font-normal"></span></label>
-                    <input id="image-search"
-                           type="text"
-                           placeholder="Search images..."
-                           class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-2">
+                    <div class="flex items-center gap-1.5 mb-2">
+                        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Images <span id="image-count" class="text-gray-500 normal-case tracking-normal font-normal"></span></label>
+                        <button id="refresh-images-btn"
+                                class="p-0.5 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-colors cursor-pointer"
+                                title="Refresh image list">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M23 4v6h-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="relative mb-2">
+                        <input id="image-search"
+                               type="text"
+                               placeholder="Search images..."
+                               class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 pr-7 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500">
+                        <button id="search-clear"
+                                class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-200 hidden cursor-pointer"
+                                title="Clear search">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                     <ul id="image-list" class="flex-1 overflow-y-auto space-y-0.5" tabindex="0">
                         <!-- Image names rendered by JS -->
                     </ul>

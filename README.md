@@ -61,6 +61,22 @@ pip install -r requirements.txt
 python app.py
 ```
 
+**Command-line options:**
+
+| Option | Description |
+|---|---|
+| `-p`, `--port PORT` | Port to run the server on (default: `5000`) |
+| `--auto-port` | Automatically pick an available port |
+| `--public` | Listen on all interfaces (`0.0.0.0`) so the app is accessible over the network |
+
+Examples:
+
+```bash
+python app.py --port 8080
+python app.py --auto-port
+python app.py --public --port 9000
+```
+
 2. Open your browser and go to **http://localhost:5000**
 
 3. Add image folders:

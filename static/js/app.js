@@ -411,7 +411,10 @@ function renderImageList() {
     noImagesEl.classList.toggle('hidden', filteredImages.length > 0);
 
     // Update match count in the heading
-    imageCountEl.textContent = imageNames.length > 0 ? `(${filteredImages.length}/${imageNames.length})` : '';
+    const isFiltered = filteredImages.length !== imageNames.length;
+    imageCountEl.textContent = imageNames.length > 0
+        ? (isFiltered ? `(${filteredImages.length}/${imageNames.length})` : `(${imageNames.length})`)
+        : '';
 
     filteredImages.forEach(name => {
         const li = document.createElement('li');
@@ -468,7 +471,6 @@ function copyImageName(name, btn) {
 
 function selectImage(name) {
     selectedImage = name;
-    overlayIndex = 0;
     zoomLevel = 1;
     panX = 0.5;
     panY = 0.5;
@@ -525,9 +527,24 @@ function scrollSelectedIntoView() {
     }
 }
 
+const searchClear = document.getElementById('search-clear');
+
 imageSearch.addEventListener('input', () => {
+    searchClear.classList.toggle('hidden', imageSearch.value.length === 0);
     applyImageFilter();
     renderImageList();
+});
+
+searchClear.addEventListener('click', () => {
+    imageSearch.value = '';
+    searchClear.classList.add('hidden');
+    applyImageFilter();
+    renderImageList();
+});
+
+document.getElementById('refresh-images-btn').addEventListener('click', () => {
+    fetchImageIntersection();
+    fetchFolderCounts();
 });
 
 // ===========================================================================
@@ -699,28 +716,28 @@ function renderOverlay() {
     if (overlayIndex >= checked.length) overlayIndex = 0;
 
     const folder = checked[overlayIndex];
-    overlayLabel.textContent = folder.name;
-    overlayImg.src = imageUrl(folder.path, selectedImage);
-    overlayImg.alt = `${folder.name} - ${selectedImage}`;
+    const newSrc = imageUrl(folder.path, selectedImage);
 
+    if (overlayImg.src !== newSrc) {
+        overlayImg.src = newSrc;
+        overlayImg.alt = `${folder.name} - ${selectedImage}`;
+    }
+
+    overlayLabel.textContent = folder.name;
     overlayFolderName.textContent = folder.name;
     overlayCounter.textContent = `(${overlayIndex + 1} / ${checked.length})`;
 
-    // Apply zoom/pan (image onload will re-apply once dimensions are known)
     requestAnimationFrame(() => applyZoomPan());
 
-    // Preload adjacent images
-    preloadOverlayImages(checked);
-}
-
-function preloadOverlayImages(checked) {
-    const prevIdx = (overlayIndex - 1 + checked.length) % checked.length;
-    const nextIdx = (overlayIndex + 1) % checked.length;
-
-    [prevIdx, nextIdx].forEach(idx => {
+    // Preload adjacent overlay folders for the current image
+    checked.forEach((f, idx) => {
         if (idx !== overlayIndex) {
-            const img = new Image();
-            img.src = imageUrl(checked[idx].path, selectedImage);
+            const url = imageUrl(f.path, selectedImage);
+            if (!preloadCache.has(url)) {
+                preloadCache.add(url);
+                const img = new Image();
+                img.src = url;
+            }
         }
     });
 }

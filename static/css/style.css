@@ -111,6 +111,37 @@
     white-space: nowrap;
 }
 
+.folder-item .copy-path-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 0.25rem;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    padding: 0;
+}
+
+.folder-item:hover .copy-path-btn {
+    opacity: 1;
+}
+
+.folder-item .copy-path-btn:hover {
+    color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.folder-item .copy-path-btn.copied {
+    opacity: 1;
+    color: #22c55e;
+}
+
 .folder-item .remove-btn {
     flex-shrink: 0;
     color: #6b7280;

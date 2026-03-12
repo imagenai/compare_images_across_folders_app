@@ -28,6 +28,7 @@ const addFolderBtn = document.getElementById('add-folder-btn');
 const folderError = document.getElementById('folder-error');
 const folderListEl = document.getElementById('folder-list');
 const noFoldersEl = document.getElementById('no-folders');
+const checkAllFoldersCb = document.getElementById('check-all-folders');
 const imageSearch = document.getElementById('image-search');
 const imageListEl = document.getElementById('image-list');
 const noImagesEl = document.getElementById('no-images');
@@ -212,8 +213,27 @@ function renderFolderList() {
         folderListEl.appendChild(li);
     });
 
+    syncCheckAllState();
     initSortable();
 }
+
+function syncCheckAllState() {
+    if (folders.length === 0) {
+        checkAllFoldersCb.checked = false;
+        checkAllFoldersCb.indeterminate = false;
+        return;
+    }
+    const checkedCount = folders.filter(f => f.checked).length;
+    checkAllFoldersCb.checked = checkedCount === folders.length;
+    checkAllFoldersCb.indeterminate = checkedCount > 0 && checkedCount < folders.length;
+}
+
+checkAllFoldersCb.addEventListener('change', () => {
+    const newState = checkAllFoldersCb.checked;
+    folders.forEach(f => f.checked = newState);
+    renderFolderList();
+    onFolderSelectionChanged();
+});
 
 let sortableInstance = null;
 

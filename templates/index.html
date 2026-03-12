@@ -44,7 +44,12 @@
                 <!-- Folder List Section -->
                 <div class="p-3 border-b border-gray-700 flex-shrink-0">
                     <div class="flex items-center justify-between mb-2">
-                        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Folders</label>
+                        <label class="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            <input id="check-all-folders" type="checkbox" checked
+                                   class="accent-blue-500 cursor-pointer"
+                                   title="Check all / Uncheck all">
+                            Folders
+                        </label>
                         <div class="flex items-center gap-1">
                             <button id="load-state-btn"
                                     class="state-btn p-1 rounded text-gray-500 hover:text-gray-200 hover:bg-gray-700 transition-colors cursor-pointer"

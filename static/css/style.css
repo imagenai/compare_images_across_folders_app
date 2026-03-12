@@ -254,6 +254,19 @@
     color: #ffffff;
 }
 
+.mode-btn .mode-icon {
+    opacity: 0.5;
+    filter: invert(1);
+}
+
+.mode-btn:hover .mode-icon {
+    opacity: 0.7;
+}
+
+.mode-btn.active .mode-icon {
+    opacity: 0.9;
+}
+
 /* Grid view */
 .grid-view {
     display: grid;

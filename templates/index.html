@@ -130,14 +130,16 @@
                 <!-- Mode Toggle -->
                 <div class="flex items-center gap-1 bg-gray-700 rounded p-0.5">
                     <button id="mode-grid"
-                            class="mode-btn px-3 py-1 text-sm rounded transition-colors cursor-pointer"
+                            class="mode-btn flex items-center gap-1.5 px-3 py-1 text-sm rounded transition-colors cursor-pointer"
                             data-mode="grid">
                         Grid
+                        <img src="{{ url_for('static', filename='icon-g.svg') }}" class="w-5 h-5 mode-icon" alt="G">
                     </button>
                     <button id="mode-overlay"
-                            class="mode-btn px-3 py-1 text-sm rounded transition-colors cursor-pointer"
+                            class="mode-btn flex items-center gap-1.5 px-3 py-1 text-sm rounded transition-colors cursor-pointer"
                             data-mode="overlay">
                         Overlay
+                        <img src="{{ url_for('static', filename='icon-o.svg') }}" class="w-5 h-5 mode-icon" alt="O">
                     </button>
                 </div>
 

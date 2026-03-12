@@ -701,6 +701,10 @@ document.addEventListener('keydown', (e) => {
     } else if (e.key === 'ArrowRight' && !isInput && displayMode === 'overlay') {
         e.preventDefault();
         navigateOverlay(1);
+    } else if (e.key === 'g' && !isInput) {
+        setMode('grid');
+    } else if (e.key === 'o' && !isInput) {
+        setMode('overlay');
     }
 });
 

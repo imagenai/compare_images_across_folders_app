@@ -93,6 +93,11 @@
                             </svg>
                         </button>
                     </div>
+                    <label class="flex items-center gap-1.5 mb-2 text-xs text-gray-400 cursor-pointer select-none" title="When unchecked, images match if one name contains the other">
+                        <input id="strict-match" type="checkbox" checked
+                               class="accent-blue-500 cursor-pointer">
+                        Strict matching
+                    </label>
                     <ul id="image-list" class="flex-1 overflow-y-auto space-y-0.5" tabindex="0">
                         <!-- Image names rendered by JS -->
                     </ul>

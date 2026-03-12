@@ -47,6 +47,7 @@ const overlayImg = document.getElementById('overlay-img');
 const emptyState = document.getElementById('empty-state');
 const displayArea = document.getElementById('display-area');
 const capResolutionCb = document.getElementById('cap-resolution');
+const strictMatchCb = document.getElementById('strict-match');
 
 // ===========================================================================
 // Helpers
@@ -63,7 +64,8 @@ function showError(msg) {
 
 function imageUrl(folderPath, imageName) {
     const cap = capResolutionCb.checked ? '1' : '0';
-    return `/api/image?folder=${encodeURIComponent(folderPath)}&name=${encodeURIComponent(imageName)}&cap=${cap}`;
+    const strict = strictMatchCb.checked ? '1' : '0';
+    return `/api/image?folder=${encodeURIComponent(folderPath)}&name=${encodeURIComponent(imageName)}&cap=${cap}&strict=${strict}`;
 }
 
 // ===========================================================================
@@ -381,7 +383,7 @@ async function fetchImageIntersection() {
         const res = await fetch('/api/images', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ folders: checked.map(f => f.path) }),
+            body: JSON.stringify({ folders: checked.map(f => f.path), strict: strictMatchCb.checked }),
         });
         const data = await res.json();
         imageNames = data.images || [];
@@ -629,6 +631,11 @@ modeOverlayBtn.addEventListener('click', () => setMode('overlay'));
 capResolutionCb.addEventListener('change', () => {
     preloadCache.clear();
     renderDisplay();
+});
+
+strictMatchCb.addEventListener('change', () => {
+    preloadCache.clear();
+    fetchImageIntersection();
 });
 
 gridRowsInput.addEventListener('input', () => renderDisplay());

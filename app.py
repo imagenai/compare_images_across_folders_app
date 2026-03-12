@@ -61,6 +61,56 @@ def find_image_by_stem(folder_path, stem):
     return None
 
 
+def find_image_by_stem_fuzzy(folder_path, stem):
+    """Find the best matching image using containment-based stem matching.
+
+    Priority: exact > file stem contains query (shortest) > query contains file stem (longest).
+    """
+    best_contains = None
+    best_contains_len = float('inf')
+    best_contained = None
+    best_contained_len = 0
+
+    try:
+        for f in os.listdir(folder_path):
+            if not (os.path.isfile(os.path.join(folder_path, f)) and is_image_file(f)):
+                continue
+            file_stem = os.path.splitext(f)[0]
+
+            if file_stem == stem:
+                return f
+
+            if stem in file_stem and len(file_stem) < best_contains_len:
+                best_contains = f
+                best_contains_len = len(file_stem)
+            elif file_stem in stem and len(file_stem) > best_contained_len:
+                best_contained = f
+                best_contained_len = len(file_stem)
+    except OSError:
+        pass
+
+    return best_contains or best_contained
+
+
+def resolve_stem_fuzzy(candidate, stem_set):
+    """Return the best matching stem from stem_set using containment.
+
+    Priority: exact > candidate is substring of stem (shortest) > stem is substring of candidate (longest).
+    """
+    if candidate in stem_set:
+        return candidate
+
+    contains = [s for s in stem_set if candidate in s]
+    if contains:
+        return min(contains, key=len)
+
+    contained = [s for s in stem_set if s in candidate]
+    if contained:
+        return max(contained, key=len)
+
+    return None
+
+
 @lru_cache(maxsize=CONVERSION_CACHE_SIZE)
 def convert_image(file_path, mtime, cap_resolution=True):
     """Convert an image to JPEG bytes. Cached by path + modification time.
@@ -117,20 +167,44 @@ def get_images_intersection():
 
     Matching is by stem (filename without extension), so image1.jpg and
     image1.tif are considered the same image.
+
+    When strict=false, stems match by containment: "cat" matches "cat_v2"
+    because one stem contains the other.
     """
     data = request.get_json(force=True)
     folders = data.get('folders', [])
+    strict = data.get('strict', True)
 
     if not folders:
         return jsonify({'images': []})
 
     stem_sets = [get_image_stems(folder_path) for folder_path in folders]
 
-    intersection = stem_sets[0]
-    for s in stem_sets[1:]:
-        intersection &= s
+    if strict:
+        intersection = stem_sets[0]
+        for s in stem_sets[1:]:
+            intersection &= s
+        return jsonify({'images': sorted(intersection)})
 
-    return jsonify({'images': sorted(intersection)})
+    # Non-strict: containment-based matching
+    all_stems = set()
+    for s in stem_sets:
+        all_stems.update(s)
+
+    passing = {
+        c for c in all_stems
+        if all(resolve_stem_fuzzy(c, ss) is not None for ss in stem_sets)
+    }
+
+    # Deduplicate: group candidates by the concrete files they resolve to,
+    # keeping the shortest representative per group.
+    resolution_map = {}
+    for candidate in passing:
+        key = tuple(resolve_stem_fuzzy(candidate, ss) for ss in stem_sets)
+        if key not in resolution_map or len(candidate) < len(resolution_map[key]):
+            resolution_map[key] = candidate
+
+    return jsonify({'images': sorted(resolution_map.values())})
 
 
 @app.route('/api/image')
@@ -151,13 +225,18 @@ def serve_image():
     if not os.path.isdir(folder):
         abort(404)
 
+    strict = request.args.get('strict', '1') != '0'
+
     # Try exact filename first
     file_path = os.path.join(folder, name)
     if os.path.isfile(file_path) and is_image_file(name):
         actual_name = name
     else:
         # Treat name as a stem and find the matching image
-        actual_name = find_image_by_stem(folder, name)
+        if strict:
+            actual_name = find_image_by_stem(folder, name)
+        else:
+            actual_name = find_image_by_stem_fuzzy(folder, name)
         if not actual_name:
             abort(404)
         file_path = os.path.join(folder, actual_name)

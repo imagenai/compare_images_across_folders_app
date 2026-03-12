@@ -366,6 +366,103 @@ stateFileInput.addEventListener('change', () => {
 });
 
 // ===========================================================================
+// Shareable Link (state encoded in URL hash)
+// ===========================================================================
+const copyLinkBtn = document.getElementById('copy-link-btn');
+
+function encodeStateToHash() {
+    const json = JSON.stringify(buildState());
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return btoa(binary);
+}
+
+function decodeStateFromHash(encoded) {
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+}
+
+function buildState() {
+    return {
+        folders: folders.map(f => ({ path: f.path, name: f.name, checked: f.checked })),
+        strict: strictMatchCb.checked,
+        mode: displayMode,
+        gridRows: parseInt(gridRowsInput.value) || 1,
+        gridCols: parseInt(gridColsInput.value) || 2,
+    };
+}
+
+function applyState(state) {
+    if (!state.folders || !Array.isArray(state.folders)) return false;
+
+    folders = state.folders.map(f => ({
+        id: nextFolderId++,
+        path: f.path,
+        name: f.name || f.path.split('/').pop(),
+        checked: f.checked !== false,
+        imageCount: null,
+    }));
+
+    if (state.strict === false) strictMatchCb.checked = false;
+    if (state.mode) setMode(state.mode);
+    if (state.gridRows) gridRowsInput.value = state.gridRows;
+    if (state.gridCols) gridColsInput.value = state.gridCols;
+
+    renderFolderList();
+    onFolderSelectionChanged();
+    fetchFolderCounts();
+    return true;
+}
+
+function copyShareableLink() {
+    if (folders.length === 0) {
+        showError('No folders to share.');
+        return;
+    }
+
+    const hash = encodeStateToHash();
+    const url = window.location.origin + window.location.pathname + '#' + hash;
+
+    navigator.clipboard.writeText(url).then(() => {
+        copyLinkBtn.classList.add('text-green-400');
+        copyLinkBtn.title = 'Link copied!';
+        setTimeout(() => {
+            copyLinkBtn.classList.remove('text-green-400');
+            copyLinkBtn.title = 'Copy shareable link';
+        }, 1500);
+    }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    });
+}
+
+function restoreFromHash() {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return false;
+
+    try {
+        const state = decodeStateFromHash(hash);
+        applyState(state);
+        history.replaceState(null, '', window.location.pathname);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+copyLinkBtn.addEventListener('click', copyShareableLink);
+
+// ===========================================================================
 // Image Intersection
 // ===========================================================================
 async function fetchImageIntersection() {
@@ -1000,7 +1097,9 @@ overlayImg.addEventListener('load', () => applyZoomPan());
 // ===========================================================================
 // Initialize
 // ===========================================================================
-setMode('grid');
-renderFolderList();
-renderImageList();
-renderDisplay();
+if (!restoreFromHash()) {
+    setMode('grid');
+    renderFolderList();
+    renderImageList();
+    renderDisplay();
+}

@@ -21,6 +21,8 @@ View a single image at full size and press the **left/right arrow keys** to inst
 - **Rename** folders inline for clearer identification
 - **Drag to reorder** folders to control display order
 - **Toggle on/off** with checkboxes to include or exclude folders from comparison
+- **Check all / Uncheck all** with the checkbox in the Folders header
+- **Copy path** to clipboard via the copy button on each folder
 - **Remove** folders with one click
 
 ![Folder Management](showcase/04_folder_management.png)
@@ -29,6 +31,10 @@ View a single image at full size and press the **left/right arrow keys** to inst
 - Scrollable list of all image names that exist across **every** selected folder (intersection)
 - **Search** to filter images by name
 - **Keyboard navigation** with Up/Down arrow keys, or click to select
+
+### Strict / Non-Strict Matching
+- **Strict matching** (default) — images match only when their filenames (without extension) are identical across folders
+- **Non-strict matching** — images match when one filename contains the other (e.g. `render_001` matches `render_001_enhanced`). Toggle via the **Strict matching** checkbox above the image list
 
 ### Synchronized Zoom & Pan
 - **Ctrl/Cmd + Scroll Wheel** to zoom in/out at the cursor position
@@ -41,6 +47,22 @@ View a single image at full size and press the **left/right arrow keys** to inst
 
 ### Collapsible Sidebar
 Click the toggle arrow to collapse or expand the sidebar, maximizing the display area when needed.
+
+### Save, Load & Share State
+- **Save** the current folder configuration to a JSON file
+- **Load** a previously saved configuration from a JSON file
+- **Copy shareable link** — encodes the full app state (folders, matching mode, display settings) into the URL, so you can share it with colleagues on the same network
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|---|---|
+| **G** | Switch to Grid mode |
+| **O** | Switch to Overlay mode |
+| **Up / Down** | Navigate the image list |
+| **Left / Right** | Cycle through folders (Overlay mode) |
+| **Ctrl/Cmd + Scroll** | Zoom in/out |
+| **Scroll** | Pan |
 
 ## Requirements
 
@@ -85,13 +107,15 @@ python app.py --public --port 9000
 
 4. Select an image from the sidebar list — the main area will display the matching images from all selected folders.
 
-5. Switch between **Grid** and **Overlay** modes using the toggle buttons at the top.
+5. Switch between **Grid** and **Overlay** modes using the toggle buttons at the top (or press **G** / **O**).
 
 6. In Grid mode, adjust the **Rows** and **Cols** controls to change the layout.
 
 7. In Overlay mode, press **Left/Right arrow keys** to cycle through folder images.
 
 8. Use **Ctrl/Cmd + Scroll** to zoom into details, and **Scroll** to pan around.
+
+9. Uncheck **Strict matching** to compare images with similar (but not identical) names across folders.
 
 ## Supported Image Formats
 

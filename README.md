@@ -90,6 +90,9 @@ python app.py
 | `-p`, `--port PORT` | Port to run the server on (default: `5000`) |
 | `--auto-port` | Automatically pick an available port |
 | `--public` | Listen on all interfaces (`0.0.0.0`) so the app is accessible over the network |
+| `--ssl` | Enable HTTPS with an auto-generated self-signed certificate |
+| `--ssl-cert FILE` | Path to your own SSL certificate (use with `--ssl-key`) |
+| `--ssl-key FILE` | Path to your own SSL private key (use with `--ssl-cert`) |
 
 Examples:
 
@@ -97,6 +100,8 @@ Examples:
 python app.py --port 8080
 python app.py --auto-port
 python app.py --public --port 9000
+python app.py --public --ssl
+python app.py --ssl-cert cert.pem --ssl-key key.pem
 ```
 
 2. Open your browser and go to **http://localhost:5000**

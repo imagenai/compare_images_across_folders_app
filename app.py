@@ -273,6 +273,64 @@ def find_free_port():
         return s.getsockname()[1]
 
 
+def generate_self_signed_cert(cert_dir=None):
+    """Generate a self-signed SSL certificate and return (cert_path, key_path).
+
+    Uses the cryptography library if available, otherwise falls back to
+    the openssl CLI.
+    """
+    import tempfile
+    import subprocess
+
+    if cert_dir is None:
+        cert_dir = tempfile.mkdtemp(prefix='image-compare-ssl-')
+
+    cert_path = os.path.join(cert_dir, 'cert.pem')
+    key_path = os.path.join(cert_dir, 'key.pem')
+
+    if os.path.isfile(cert_path) and os.path.isfile(key_path):
+        return cert_path, key_path
+
+    try:
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        import datetime
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Image Compare')])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.utcnow())
+            .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
+            .sign(key, hashes.SHA256())
+        )
+
+        with open(key_path, 'wb') as f:
+            f.write(key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
+        with open(cert_path, 'wb') as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    except ImportError:
+        subprocess.run([
+            'openssl', 'req', '-x509', '-newkey', 'rsa:2048',
+            '-keyout', key_path, '-out', cert_path,
+            '-days', '365', '-nodes',
+            '-subj', '/CN=Image Compare',
+        ], check=True, capture_output=True)
+
+    return cert_path, key_path
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -283,6 +341,12 @@ if __name__ == '__main__':
                         help='Automatically pick an available port')
     parser.add_argument('--public', action='store_true',
                         help='Listen on all interfaces (0.0.0.0) so the app is accessible over the network')
+    parser.add_argument('--ssl', action='store_true',
+                        help='Enable HTTPS with a self-signed certificate (browsers will show a warning on first visit)')
+    parser.add_argument('--ssl-cert', type=str, default=None,
+                        help='Path to SSL certificate file (use with --ssl-key to provide your own cert)')
+    parser.add_argument('--ssl-key', type=str, default=None,
+                        help='Path to SSL private key file (use with --ssl-cert)')
     parser.add_argument('--max-resolution', type=int, default=3000,
                         help='Max pixel dimension for converted images like TIFF (default: 3000, 0=no limit)')
     args = parser.parse_args()
@@ -301,5 +365,16 @@ if __name__ == '__main__':
         os.environ[env_key] = str(port)
 
     host = '0.0.0.0' if args.public else '127.0.0.1'
-    print(f' * Starting on http://{host}:{port}')
-    app.run(host=host, port=port, debug=True)
+    protocol = 'http'
+    ssl_context = None
+
+    if args.ssl_cert and args.ssl_key:
+        ssl_context = (args.ssl_cert, args.ssl_key)
+        protocol = 'https'
+    elif args.ssl:
+        cert_path, key_path = generate_self_signed_cert()
+        ssl_context = (cert_path, key_path)
+        protocol = 'https'
+
+    print(f' * Starting on {protocol}://{host}:{port}')
+    app.run(host=host, port=port, debug=True, ssl_context=ssl_context)

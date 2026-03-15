@@ -447,22 +447,15 @@ function copyShareableLink() {
     const hash = encodeStateToHash();
     const url = window.location.origin + window.location.pathname + '#' + hash;
 
-    navigator.clipboard.writeText(url).then(() => {
-        copyLinkBtn.classList.add('text-green-400');
-        copyLinkBtn.title = 'Link copied!';
-        setTimeout(() => {
-            copyLinkBtn.classList.remove('text-green-400');
-            copyLinkBtn.title = 'Copy shareable link';
-        }, 1500);
-    }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = url;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+    writeClipboard(url).then((ok) => {
+        if (ok) {
+            copyLinkBtn.classList.add('text-green-400');
+            copyLinkBtn.title = 'Link copied!';
+            setTimeout(() => {
+                copyLinkBtn.classList.remove('text-green-400');
+                copyLinkBtn.title = 'Copy shareable link';
+            }, 1500);
+        }
     });
 }
 
@@ -579,23 +572,37 @@ function renderImageList() {
 const CLIPBOARD_ICON = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
 const CHECK_ICON = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
 
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+}
+
+function writeClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(() => true, () => fallbackCopy(text));
+    }
+    return Promise.resolve(fallbackCopy(text));
+}
+
 function copyToClipboard(text, btn) {
-    navigator.clipboard.writeText(text).then(() => {
-        btn.classList.add('copied');
-        btn.innerHTML = CHECK_ICON;
-        setTimeout(() => {
-            btn.classList.remove('copied');
-            btn.innerHTML = CLIPBOARD_ICON;
-        }, 1500);
-    }).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+    writeClipboard(text).then((ok) => {
+        if (ok) {
+            btn.classList.add('copied');
+            btn.innerHTML = CHECK_ICON;
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = CLIPBOARD_ICON;
+            }, 1500);
+        }
     });
 }
 

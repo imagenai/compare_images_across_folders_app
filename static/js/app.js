@@ -766,6 +766,73 @@ strictMatchCb.addEventListener('change', () => {
     fetchImageIntersection();
 });
 
+// ===========================================================================
+// Screenshot
+// ===========================================================================
+const screenshotBtn = document.getElementById('screenshot-btn');
+
+async function captureTab() {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+        preferCurrentTab: true,
+    });
+
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.autoplay = true;
+    await new Promise(resolve => { video.onloadeddata = resolve; });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    stream.getTracks().forEach(t => t.stop());
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+screenshotBtn.addEventListener('click', async () => {
+    screenshotBtn.disabled = true;
+    screenshotBtn.classList.add('opacity-50');
+
+    try {
+        const canUseNative = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia;
+        const blob = canUseNative
+            ? await captureTab()
+            : await html2canvas(document.getElementById('app'), {
+                backgroundColor: '#111827', useCORS: true, scale: 1, logging: false,
+            }).then(c => new Promise(r => c.toBlob(r, 'image/png')));
+        if (!blob) throw new Error('Failed to create image');
+
+        let copied = false;
+        if (window.isSecureContext && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                copied = true;
+            } catch { /* fall through to download */ }
+        }
+
+        if (!copied) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `screenshot-${selectedImage || 'view'}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        screenshotBtn.classList.add('text-green-400');
+        setTimeout(() => screenshotBtn.classList.remove('text-green-400'), 1500);
+    } catch (e) {
+        if (e.name !== 'NotAllowedError') showError('Screenshot failed.');
+    } finally {
+        screenshotBtn.disabled = false;
+        screenshotBtn.classList.remove('opacity-50');
+    }
+});
+
 gridRowsInput.addEventListener('input', () => renderDisplay());
 gridColsInput.addEventListener('input', () => renderDisplay());
 

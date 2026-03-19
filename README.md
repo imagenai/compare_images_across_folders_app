@@ -53,6 +53,9 @@ Click the toggle arrow to collapse or expand the sidebar, maximizing the display
 - **Load** a previously saved configuration from a JSON file
 - **Copy shareable link** — encodes the full app state (folders, matching mode, display settings) into the URL, so you can share it with colleagues on the same network
 
+### Screenshot
+Click the camera icon in the toolbar to capture the full app view. The browser will ask you to confirm tab sharing on the first use. On HTTPS or localhost, the image is copied directly to the clipboard. On plain HTTP, it downloads as a PNG file instead (browser security restriction).
+
 ### Keyboard Shortcuts
 
 | Key | Action |

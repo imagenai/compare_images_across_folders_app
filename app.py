@@ -3,16 +3,18 @@ import os
 from functools import lru_cache
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort, make_response
 from PIL import Image
+import numpy as np
 
 app = Flask(__name__)
 
 IMAGE_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.gif', '.webp',
     '.tiff', '.tif', '.bmp', '.svg',
+    '.npy', '.npz',
 }
 
 # Formats that browsers cannot display natively — convert before serving
-NEEDS_CONVERSION = {'.tiff', '.tif', '.bmp'}
+NEEDS_CONVERSION = {'.tiff', '.tif', '.bmp', '.npy', '.npz'}
 
 # Maximum number of converted images to keep in cache
 CONVERSION_CACHE_SIZE = 256
@@ -111,6 +113,61 @@ def resolve_stem_fuzzy(candidate, stem_set):
     return None
 
 
+def normalize_array(arr):
+    """Normalize a numpy array to uint8 (0–255) using min-max scaling."""
+    if arr.dtype == np.uint8:
+        return arr
+    arr = arr.astype(np.float64)
+    lo, hi = arr.min(), arr.max()
+    if lo == hi:
+        return np.zeros(arr.shape, dtype=np.uint8)
+    return ((arr - lo) / (hi - lo) * 255.0).astype(np.uint8)
+
+
+def array_to_pil(arr):
+    """Convert a numpy array to a PIL Image, normalizing to 8-bit."""
+    arr = normalize_array(arr)
+    if arr.ndim == 2:
+        return Image.fromarray(arr, mode='L')
+    if arr.ndim == 3:
+        channels = arr.shape[2]
+        if channels == 1:
+            return Image.fromarray(arr[:, :, 0], mode='L')
+        if channels == 3:
+            return Image.fromarray(arr, mode='RGB')
+        if channels == 4:
+            return Image.fromarray(arr, mode='RGBA')
+        return Image.fromarray(arr[:, :, :3], mode='RGB')
+    raise ValueError(f'Unsupported array shape for image: {arr.shape}')
+
+
+def load_numpy_image(file_path):
+    """Load an image array from a .npy or .npz file and return a PIL Image."""
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == '.npz':
+        with np.load(file_path) as data:
+            arr = data[data.files[0]]
+    else:
+        arr = np.load(file_path)
+    return array_to_pil(arr)
+
+
+def open_image(file_path):
+    """Open an image file, with tifffile fallback for TIFFs that Pillow can't handle."""
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext in ('.npy', '.npz'):
+        return load_numpy_image(file_path)
+
+    try:
+        return Image.open(file_path)
+    except Exception:
+        if ext in ('.tif', '.tiff'):
+            import tifffile
+            return array_to_pil(tifffile.imread(file_path))
+        raise
+
+
 @lru_cache(maxsize=CONVERSION_CACHE_SIZE)
 def convert_image(file_path, mtime, cap_resolution=True):
     """Convert an image to JPEG bytes. Cached by path + modification time.
@@ -118,15 +175,21 @@ def convert_image(file_path, mtime, cap_resolution=True):
     The mtime parameter ensures the cache is invalidated when the file changes.
     Downscales to MAX_RESOLUTION if cap_resolution is True and the image exceeds it.
     """
-    img = Image.open(file_path)
+    img = open_image(file_path)
 
     if cap_resolution and MAX_RESOLUTION > 0:
         longest = max(img.size)
         if longest > MAX_RESOLUTION:
             img.thumbnail((MAX_RESOLUTION, MAX_RESOLUTION), Image.BILINEAR)
 
-    if img.mode in ('RGBA', 'LA', 'P'):
+    # Normalize high-bit-depth modes (32-bit int, 16-bit, float) to 8-bit
+    if img.mode in ('I', 'I;16', 'I;32', 'F'):
+        arr = normalize_array(np.array(img))
+        img = Image.fromarray(arr, mode='L')
+
+    if img.mode != 'RGB':
         img = img.convert('RGB')
+
     buf = io.BytesIO()
     img.save(buf, format='JPEG', quality=85)
     return buf.getvalue()

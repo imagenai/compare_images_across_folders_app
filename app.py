@@ -3,6 +3,7 @@ import os
 from functools import lru_cache
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort, make_response
 from PIL import Image
+import tifffile
 
 app = Flask(__name__)
 
@@ -111,6 +112,31 @@ def resolve_stem_fuzzy(candidate, stem_set):
     return None
 
 
+def load_tiff_as_pil(file_path):
+    """Open a TIFF as a PIL Image. Float32 TIFFs are clamped to [0,1] and scaled to 8-bit."""
+    with tifffile.TiffFile(file_path) as tf:
+        is_float = tf.pages[0].dtype.kind == 'f'
+
+    if not is_float:
+        return Image.open(file_path)
+
+    arr = tifffile.imread(file_path)
+    if arr.ndim == 3 and arr.shape[-1] == 1:
+        arr = arr[..., 0]
+
+    arr = arr.clip(0.0, 1.0)
+    arr = (arr * 255.0 + 0.5).astype('uint8')
+
+    if arr.ndim == 2:
+        return Image.fromarray(arr, 'L')
+    if arr.ndim == 3 and arr.shape[-1] == 3:
+        return Image.fromarray(arr, 'RGB')
+    if arr.ndim == 3 and arr.shape[-1] == 4:
+        return Image.fromarray(arr, 'RGBA')
+
+    return Image.open(file_path)
+
+
 @lru_cache(maxsize=CONVERSION_CACHE_SIZE)
 def convert_image(file_path, mtime, cap_resolution=True):
     """Convert an image to JPEG bytes. Cached by path + modification time.
@@ -118,7 +144,11 @@ def convert_image(file_path, mtime, cap_resolution=True):
     The mtime parameter ensures the cache is invalidated when the file changes.
     Downscales to MAX_RESOLUTION if cap_resolution is True and the image exceeds it.
     """
-    img = Image.open(file_path)
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext in ('.tif', '.tiff'):
+        img = load_tiff_as_pil(file_path)
+    else:
+        img = Image.open(file_path)
 
     if cap_resolution and MAX_RESOLUTION > 0:
         longest = max(img.size)
